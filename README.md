@@ -21,13 +21,45 @@ This project provides a containerized deployment of n8n, a powerful workflow aut
 
 ## Quick Start
 
+### Automated Setup (Recommended)
+
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
    cd self-n8n
    ```
 
-2. **Set up environment variables**
+2. **Run the initialization script**
+   ```bash
+   ./scripts/init.sh
+   ```
+
+   This script will automatically:
+   - Check Docker prerequisites
+   - Create the required Docker volume (`n8n_data`)
+   - Set up environment configuration
+   - Start all services
+   - Provide helpful next steps
+
+3. **Access n8n**
+   Open your browser and navigate to: `http://localhost:5678`
+
+### Manual Setup
+
+If you prefer to set up manually:
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd self-n8n
+   ```
+
+2. **Create the external Docker volume**
+   ```bash
+   docker volume create n8n_data
+   ```
+
+3. **Set up environment variables**
    ```bash
    # Create your environment file
    cp .env.example .env
@@ -36,12 +68,12 @@ This project provides a containerized deployment of n8n, a powerful workflow aut
    # Required: LANGSMITH_API_KEY for LangSmith integration
    ```
 
-3. **Start the services**
+4. **Start the services**
    ```bash
    docker-compose up -d
    ```
 
-4. **Access n8n**
+5. **Access n8n**
    Open your browser and navigate to: `http://localhost:5678`
 
 ## Configuration
@@ -73,6 +105,16 @@ The following environment variables should be configured in your `.env` file:
 - Default timezone: `America/Lima`
 
 ## Common Commands
+
+### Quick Setup
+
+```bash
+# Initialize and start everything (recommended for new setups)
+./scripts/init.sh
+
+# Create external volume manually (if needed)
+docker volume create n8n_data
+```
 
 ### Docker Operations
 

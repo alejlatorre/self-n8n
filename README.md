@@ -8,7 +8,8 @@ This project provides a containerized deployment of n8n, a powerful workflow aut
 
 ## Features
 
-- 🐳 **Containerized Deployment**: Easy setup using Docker Compose
+- 🐳 **Containerized Deployment**: Easy setup using Docker Compose with custom n8n build
+- 🔧 **Enhanced n8n**: Pre-configured with @xmldom/xmldom for XML processing workflows
 - 🗄️ **Flexible Database Options**: Supports both SQLite (default) and PostgreSQL
 - 📊 **LangSmith Integration**: Advanced workflow tracing and monitoring via LangChain
 - 🔄 **Data Persistence**: Workflows and data persist between container restarts
@@ -131,7 +132,8 @@ docker-compose logs -f n8n
 # Restart the service
 docker-compose restart n8n
 
-# Pull latest n8n image
+# Build and pull latest n8n image
+docker-compose build --pull
 docker-compose pull
 ```
 
@@ -162,7 +164,7 @@ docker run --rm -v self-n8n_data:/data -v $(pwd):/backup alpine tar czf /backup/
 │   Port: 5678        │
 └─────────┬───────────┘
           │
-          ├─ Docker Volume (data)
+          ├─ Docker Volume (n8n_data)
           │  └─ Workflows & Settings
           │
           └─ LangSmith Integration
@@ -174,7 +176,7 @@ docker run --rm -v self-n8n_data:/data -v $(pwd):/backup alpine tar czf /backup/
 To upgrade n8n to the latest version:
 
 ```bash
-docker-compose pull
+docker-compose build --pull
 docker-compose up -d
 ```
 

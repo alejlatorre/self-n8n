@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   n8n:
-    image: docker.n8n.io/n8nio/n8n:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.n8n
     container_name: n8n
     restart: unless-stopped
     ports:
@@ -10,10 +12,11 @@ services:
     env_file:
       - .env
     environment:
+      # ---------- TIMEZONE ----------
       - TZ=America/Lima
 
-      # - NODE_FUNCTION_ALLOW_EXTERNAL="@xmldom/xmldom"
-      # - NODE_PATH="/home/node/.n8n/node_modules"
+      # ---------- NODE_FUNCTION_ALLOW_EXTERNAL ----------
+      - NODE_FUNCTION_ALLOW_EXTERNAL=@xmldom/xmldom
 
       # ---------- DATABASE (pick ONE block) ----------
       # 1. Keep default SQLite (good for quick local dev)

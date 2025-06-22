@@ -78,7 +78,10 @@ else
     print_status "Created Docker volume '$VOLUME_NAME'"
 fi
 
-# Start the services
+# Build and start the services
+print_info "Building custom n8n image with xmldom support..."
+docker-compose build --pull
+
 print_info "Starting n8n services..."
 docker-compose up -d
 

@@ -14,6 +14,9 @@ This project provides a containerized deployment of n8n, a powerful workflow aut
 - 📊 **LangSmith Integration**: Advanced workflow tracing and monitoring via LangChain
 - 🔄 **Data Persistence**: Workflows and data persist between container restarts
 - ⚙️ **Environment-based Configuration**: Easy configuration through environment variables
+- 🔒 **SSL/TLS Support**: Integrated Traefik reverse proxy with automatic Let's Encrypt certificates
+- 🌐 **Domain Configuration**: Production-ready setup with custom domain support
+- 📁 **Local File Access**: Mount local files for workflow processing
 
 ## Prerequisites
 
@@ -83,6 +86,14 @@ If you prefer to set up manually:
 
 The following environment variables should be configured in your `.env` file:
 
+**n8n Configuration:**
+- `DOMAIN_NAME`: Your domain name (e.g., example.com)
+- `SUBDOMAIN`: Subdomain for n8n (e.g., n8n)
+- `GENERIC_TIMEZONE`: Timezone for n8n (default: America/Lima)
+- `TZ`: System timezone (default: America/Lima)
+- `SSL_EMAIL`: Email address for Let's Encrypt certificates
+
+**LangSmith Integration:**
 - `LANGSMITH_API_KEY`: Required for LangSmith tracing integration
 - `LANGSMITH_PROJECT`: Project name for LangSmith (default: "n8n")
 - `LANGSMITH_ENDPOINT`: LangSmith API endpoint
@@ -102,7 +113,16 @@ The following environment variables should be configured in your `.env` file:
 
 ### Port Configuration
 
+**Local Development:**
 - n8n web interface: `localhost:5678`
+- Traefik dashboard: `localhost:8080` (if enabled)
+
+**Production (with domain):**
+- n8n web interface: `https://${SUBDOMAIN}.${DOMAIN_NAME}`
+- Automatic HTTP to HTTPS redirect
+- SSL/TLS certificates via Let's Encrypt
+
+**Default Settings:**
 - Default timezone: `America/Lima`
 
 ## Common Commands
@@ -113,24 +133,27 @@ The following environment variables should be configured in your `.env` file:
 # Initialize and start everything (recommended for new setups)
 ./scripts/init.sh
 
-# Create external volume manually (if needed)
+# Create external volumes manually (if needed)
 docker volume create n8n_data
+docker volume create traefik_data
 ```
 
 ### Docker Operations
 
 ```bash
-# Start the n8n service
+# Start all services (n8n + Traefik)
 docker-compose up -d
 
-# Stop the service
+# Stop all services
 docker-compose down
 
 # View logs
 docker-compose logs -f n8n
+docker-compose logs -f traefik
 
-# Restart the service
+# Restart specific service
 docker-compose restart n8n
+docker-compose restart traefik
 
 # Build and pull latest n8n image
 docker-compose build --pull
@@ -146,39 +169,67 @@ docker-compose ps
 # Access n8n container shell
 docker-compose exec n8n sh
 
-# Backup data volume
-docker run --rm -v self-n8n_data:/data -v $(pwd):/backup alpine tar czf /backup/n8n-backup.tar.gz -C /data .
+# Backup data volumes
+docker run --rm -v n8n_data:/data -v $(pwd):/backup alpine tar czf /backup/n8n-backup.tar.gz -C /data .
+docker run --rm -v traefik_data:/data -v $(pwd):/backup alpine tar czf /backup/traefik-backup.tar.gz -C /data .
+
+# View SSL certificates
+docker-compose exec traefik ls -la /letsencrypt/
 ```
 
 ## Data Persistence
 
-- All n8n data (workflows, credentials, settings) persists in the Docker volume `data`
+- All n8n data (workflows, credentials, settings) persists in the Docker volume `n8n_data`
+- SSL certificates and Traefik configuration persist in the Docker volume `traefik_data`
+- Local files accessible via `/files` directory in n8n workflows (mounted from `./local-files`)
 - Database location: `/home/node/.n8n/database.sqlite` (SQLite) or PostgreSQL container
 - Data survives container restarts and updates
 
 ## Architecture
 
 ```
-┌─────────────────────┐
-│   n8n Container     │
-│   Port: 5678        │
-└─────────┬───────────┘
-          │
-          ├─ Docker Volume (n8n_data)
-          │  └─ Workflows & Settings
-          │
-          └─ LangSmith Integration
-             └─ Tracing & Monitoring
+                    ┌─────────────────────┐
+                    │   Traefik Proxy     │
+                    │   Ports: 80/443     │
+                    │   SSL Termination   │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │   n8n Container     │
+                    │   Port: 5678        │
+                    └─────────┬───────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          │                   │                   │
+  ┌───────▼────────┐  ┌───────▼────────┐  ┌──────▼──────┐
+  │ Docker Volume  │  │ Docker Volume  │  │ Local Files │
+  │ (n8n_data)     │  │ (traefik_data) │  │ (./local)   │
+  │ Workflows &    │  │ SSL Certs &    │  │ File Access │
+  │ Settings       │  │ Config         │  │ for n8n     │
+  └────────────────┘  └────────────────┘  └─────────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │ LangSmith           │
+                    │ Integration         │
+                    │ Tracing & Monitor   │
+                    └─────────────────────┘
 ```
 
 ## Upgrading
 
 To upgrade n8n to the latest version:
 
-```bash
-docker-compose build --pull
-docker-compose up -d
-```
+1. **Update the version in Dockerfile.n8n** (currently using n8n:1.105.2)
+2. **Rebuild and restart:**
+   ```bash
+   docker-compose build --pull
+   docker-compose up -d
+   ```
+
+3. **Verify the upgrade:**
+   ```bash
+   docker-compose logs -f n8n
+   ```
 
 ## Troubleshooting
 
@@ -187,23 +238,36 @@ docker-compose up -d
 1. **Port already in use**: Change the port mapping in `docker-compose.yml`
 2. **Permission issues**: Ensure Docker has proper permissions
 3. **LangSmith connection**: Verify your API key in the `.env` file
+4. **SSL certificate issues**: Check Traefik logs and ensure email is configured
+5. **Domain not resolving**: Verify DNS settings point to your server
+6. **Local files not accessible**: Ensure `./local-files` directory exists and has proper permissions
 
 ### Logs and Debugging
 
 ```bash
 # View detailed logs
 docker-compose logs -f n8n
+docker-compose logs -f traefik
 
 # Check container health
 docker-compose ps
+
+# Test SSL certificate
+curl -I https://${SUBDOMAIN}.${DOMAIN_NAME}
+
+# Check Traefik dashboard (if enabled)
+open http://localhost:8080
 ```
 
 ## Security Considerations
 
-- Change default ports if exposing to the internet
-- Use strong passwords for database connections
-- Keep your `.env` file secure and never commit it to version control
-- Regularly update the n8n image for security patches
+- **SSL/TLS**: Automatic HTTPS with Let's Encrypt certificates
+- **Headers**: Security headers configured via Traefik middleware
+- **Database**: Use strong passwords for database connections
+- **Environment**: Keep your `.env` file secure and never commit it to version control
+- **Updates**: Regularly update both n8n and Traefik images for security patches
+- **Firewall**: Only expose ports 80 and 443 to the internet
+- **Domain**: Use a proper domain name for production deployments
 
 ## Contributing
 

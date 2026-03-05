@@ -1,4 +1,4 @@
-.PHONY: help setup start stop restart logs build install-nodes clean env-setup volumes
+.PHONY: help setup start stop restart logs build upgrade install-nodes clean env-setup volumes
 
 # Colors for output
 RED := \033[0;31m
@@ -117,6 +117,17 @@ build: ## Build custom n8n image
 	fi
 	$(call print_info,"Building custom n8n image with xmldom support...")
 	@docker-compose build --pull
+
+upgrade: build ## Rebuild image and recreate containers (use after updating image version in Dockerfile.n8n)
+	$(call print_info,"Recreating containers with new image...")
+	@docker-compose up -d
+	@sleep 3
+	@if docker-compose ps | grep -q "Up"; then \
+		$(call print_status,"Upgrade complete! Verify with: make logs"); \
+	else \
+		$(call print_error,"Failed to start services after upgrade. Check logs with: make logs"); \
+		exit 1; \
+	fi
 
 start: ## Start all services (n8n + Traefik)
 	$(call print_info,"Starting all services (n8n + Traefik)...")
